@@ -124,18 +124,15 @@ class Lexer:
         return Token(TokenType.MULTILINE_STRING, value, start_line, start_col)
 
     def skip_comment(self):
-        """Skip nested comments with </ ... />"""
-        self.comment_nesting = 1
-        while self.pos < self.length and self.comment_nesting > 0:
-            ch = self.peek()
-            if ch == '<' and self.peek(1) == '/':
-                self.advance()  # <
-                self.advance()  # /
-                self.comment_nesting += 1
-            elif ch == '/' and self.peek(1) == '>':
-                self.advance()  # /
-                self.advance()  # >
-                self.comment_nesting -= 1
+        # این تابع فرض می‌کند که '<' قبلاً دیده شده و '/' بعدی مصرف شده
+        depth = 1
+        while depth > 0 and self.pos < self.length:
+            if self.peek() == '<' and self.peek(1) == '/':
+                self.advance(); self.advance()
+                depth += 1
+            elif self.peek() == '/' and self.peek(1) == '>':
+                self.advance(); self.advance()
+                depth -= 1
             else:
                 self.advance()
 
@@ -199,6 +196,9 @@ class Lexer:
             if two_char == '||':
                 self.advance(); self.advance()
                 return Token(TokenType.OR, '||', start_line, start_col)
+            if two_char == '=>':
+                self.advance(); self.advance()
+                return Token(TokenType.ARROW, '=>', start_line, start_col)
 
             # Single‑character tokens
             single_map = {
@@ -220,6 +220,7 @@ class Lexer:
                 ',': TokenType.COMMA,
                 '?': TokenType.QUESTION,
                 '!': TokenType.NOT,
+                '%': TokenType.MOD,
             }
             if ch in single_map:
                 self.advance()

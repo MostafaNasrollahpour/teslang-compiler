@@ -54,6 +54,8 @@ class TokenType(Enum):
     AND = auto()          # &&
     OR = auto()           # ||
     NOT = auto()          # !
+    ARROW = auto()   # =>
+    MOD = auto()   # %
 
     # Literals & identifiers
     ID = auto()           # identifier (instead of IDENTIFIER)
