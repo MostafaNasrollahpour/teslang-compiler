@@ -1,5 +1,4 @@
-import sys
-from token import Token, TokenType
+from tokens import Token, TokenType
 
 class Lexer:
     def __init__(self, text: str):
@@ -7,7 +6,6 @@ class Lexer:
         self.pos = 0
         self.line = 1
         self.col = 1
-        self.comment_nesting = 0
         self.length = len(text)
 
     def peek(self, offset=0):
@@ -40,7 +38,6 @@ class Lexer:
             if ch is None or (not ch.isalnum() and ch != '_'):
                 break
             value += self.advance()
-        # Keyword mapping (use exact token names from PDF)
         kw_map = {
             'funk': TokenType.FUNK,
             'int': TokenType.INT,
@@ -64,7 +61,7 @@ class Lexer:
             'scan': TokenType.SCAN,
             'print': TokenType.PRINT,
             'list': TokenType.LIST,
-            'length': TokenType.LEN,   # built‑in function "length" -> token LEN
+            'length': TokenType.LEN,
             'exit': TokenType.EXIT,
         }
         ttype = kw_map.get(value, TokenType.ID)
@@ -124,34 +121,34 @@ class Lexer:
         return Token(TokenType.MULTILINE_STRING, value, start_line, start_col)
 
     def skip_comment(self):
-        # این تابع فرض می‌کند که '<' قبلاً دیده شده و '/' بعدی مصرف شده
+        """Skip nested comments with </ ... />. Assumes '<' and '/' are already consumed."""
         depth = 1
         while depth > 0 and self.pos < self.length:
             if self.peek() == '<' and self.peek(1) == '/':
-                self.advance(); self.advance()
+                self.advance()
+                self.advance()
                 depth += 1
             elif self.peek() == '/' and self.peek(1) == '>':
-                self.advance(); self.advance()
+                self.advance()
+                self.advance()
                 depth -= 1
             else:
                 self.advance()
+        if depth > 0:
+            raise SyntaxError(f"Unclosed comment at {self.line}:{self.col}")
 
     def get_next_token(self):
         while self.pos < self.length:
-            if self.comment_nesting > 0:
-                self.skip_comment()
-                continue
-
             self.skip_whitespace()
             if self.pos >= self.length:
                 break
 
             ch = self.peek()
 
-            # Opening of a comment
+            # Opening of a comment (</)
             if ch == '<' and self.peek(1) == '/':
-                self.advance()
-                self.advance()
+                self.advance()  # consume '<'
+                self.advance()  # consume '/'
                 self.skip_comment()
                 continue
 
@@ -209,18 +206,18 @@ class Lexer:
                 '-': TokenType.MINUS,
                 '*': TokenType.MULTIPLY,
                 '/': TokenType.DIVIDE,
+                '%': TokenType.MOD,
                 '(': TokenType.LPAREN,
                 ')': TokenType.RPAREN,
-                '{': TokenType.LBRACE,
-                '}': TokenType.RBRACE,
-                '[': TokenType.LSQUARE,
-                ']': TokenType.RSQUARE,
-                ';': TokenType.SEMICOLON,
+                '{': TokenType.LCURLYEBR,
+                '}': TokenType.RCURLYEBR,
+                '[': TokenType.LSQUAREBR,
+                ']': TokenType.RSQUAREBR,
+                ';': TokenType.SEMI_COLON,
                 ':': TokenType.COLON,
                 ',': TokenType.COMMA,
                 '?': TokenType.QUESTION,
                 '!': TokenType.NOT,
-                '%': TokenType.MOD,
             }
             if ch in single_map:
                 self.advance()
