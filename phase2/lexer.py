@@ -2,7 +2,6 @@ from tokens import Token, TokenType
 
 class Lexer:
     def __init__(self, text: str):
-        # حذف BOM اگر وجود داشته باشد
         if text.startswith('\ufeff'):
             text = text[1:]
         self.text = text
@@ -60,6 +59,7 @@ class Lexer:
             'for': TokenType.FOR,
             'to': TokenType.TO,
             'begin': TokenType.BEGIN,
+            'end': TokenType.END,          # جدید
             'endfor': TokenType.ENDFOR,
             'scan': TokenType.SCAN,
             'print': TokenType.PRINT,

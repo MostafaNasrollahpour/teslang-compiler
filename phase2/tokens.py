@@ -20,6 +20,7 @@ class TokenType(Enum):
     FOR = auto()
     TO = auto()
     BEGIN = auto()
+    END = auto()          # برای بستن بلوک BEGIN ... END
     ENDFOR = auto()
     SCAN = auto()
     PRINT = auto()

@@ -31,8 +31,12 @@ class Param(ASTNode):
     def __repr__(self):
         return f"Param({self.name}: {self.type})"
 
-class FunctionDecl(ASTNode):
-    def __init__(self, name: str, return_type: Type, params: List[Param], body: List['Statement'], line: int = 0, col: int = 0):
+# Statement must be defined before FunctionDecl
+class Statement(ASTNode):
+    pass
+
+class FunctionDecl(Statement):   # Now Statement is defined
+    def __init__(self, name: str, return_type: Type, params: List[Param], body: List[Statement], line: int = 0, col: int = 0):
         super().__init__(line, col)
         self.name = name
         self.return_type = return_type
@@ -41,9 +45,6 @@ class FunctionDecl(ASTNode):
 
     def __repr__(self):
         return f"FunctionDecl({self.name}, {self.return_type}, {self.params}, {self.body})"
-
-class Statement(ASTNode):
-    pass
 
 class Block(Statement):
     def __init__(self, statements: List[Statement], line: int = 0, col: int = 0):
@@ -183,3 +184,21 @@ class ArrayAccess(Expression):
 
     def __repr__(self):
         return f"ArrayAccess({self.array}[{self.index}])"
+
+class TernaryOp(Expression):
+    def __init__(self, cond: Expression, then_expr: Expression, else_expr: Expression, line: int = 0, col: int = 0):
+        super().__init__(line, col)
+        self.cond = cond
+        self.then_expr = then_expr
+        self.else_expr = else_expr
+
+    def __repr__(self):
+        return f"TernaryOp({self.cond} ? {self.then_expr} : {self.else_expr})"
+
+class ArrayLiteral(Expression):
+    def __init__(self, elements: List[Expression], line: int = 0, col: int = 0):
+        super().__init__(line, col)
+        self.elements = elements
+
+    def __repr__(self):
+        return f"ArrayLiteral({self.elements})"

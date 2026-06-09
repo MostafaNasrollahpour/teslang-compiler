@@ -9,7 +9,6 @@ def main():
     parser = Parser(lexer)
     try:
         ast = parser.parse_program()
-        # آنالیز معنایی
         analyzer = SemanticAnalyzer()
         analyzer.visit(ast)
         if analyzer.errors:
