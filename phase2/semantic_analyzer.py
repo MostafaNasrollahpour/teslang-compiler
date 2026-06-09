@@ -8,7 +8,6 @@ class SemanticAnalyzer:
         self.current_scope = None
         self.current_function: Optional[FunctionDecl] = None
         self.current_function_has_return = False
-        self.functions: Dict[str, Tuple[Type, List[Param]]] = {}   # name -> (return_type, params)
         self.errors = []
 
     def error(self, msg: str, node: ASTNode):
@@ -39,24 +38,37 @@ class SemanticAnalyzer:
     # برنامه و توابع
     # ------------------------------------------------------------------
     def visit_Program(self, node: Program):
-        # مرحله اول: ثبت توابع
-        global_scope = Scope()
-        self.current_scope = global_scope
-        for func in node.functions:
-            if func.name in self.functions:
-                self.error(f"Function '{func.name}' already defined", func)
-            else:
-                self.functions[func.name] = (func.return_type, func.params)
-            # همچنین در scope سراسری برای جلوگیری از تعریف متغیر با همین نام
-            sym = Symbol(func.name, func.return_type, func.line, func.col, initialized=True)
-            try:
-                self.current_scope.define(func.name, sym)
-            except Exception as e:
-                self.error(f"Function '{func.name}' already defined in global scope", func)
+        # ایجاد scope سراسری
+        self.current_scope = Scope()
 
-        # مرحله دوم: بررسی بدنه توابع
+        # مرحله 1: ثبت تمام توابع سطح بالا (بدون بررسی بدنه)
+        for func in node.functions:
+            self._declare_function(func)
+
+        # مرحله 2: بررسی بدنه توابع (حالا توابع در scope وجود دارند)
         for func in node.functions:
             self.visit(func)
+
+        # بررسی وجود main
+        main_sym = self.current_scope.lookup('main')
+        if not main_sym or not main_sym.is_function:
+            self.error("Program must have a 'main' function", node)
+        else:
+            if main_sym.type.name != 'void' or len(main_sym.params) != 0:
+                self.error("'main' function must have signature: funk <null> main()", node)
+
+    def _declare_function(self, node: FunctionDecl):
+        """ثبت تابع در scope جاری (قبل از بررسی بدنه)"""
+        # نوع بازگشتی را به Type تبدیل می‌کنیم (null -> void)
+        ret_type = node.return_type
+        if ret_type.name == 'null':
+            ret_type = Type('void')
+        sym = Symbol(node.name, ret_type, node.line, node.col,
+                     initialized=True, is_function=True, params=node.params)
+        try:
+            self.current_scope.define(node.name, sym)
+        except Exception as e:
+            self.error(f"Function '{node.name}' already defined in this scope", node)
 
     def visit_FunctionDecl(self, node: FunctionDecl):
         # ورود به scope جدید
@@ -64,7 +76,7 @@ class SemanticAnalyzer:
         self.current_function = node
         self.current_function_has_return = False
 
-        # تعریف پارامترها
+        # تعریف پارامترها به عنوان متغیر در scope جدید
         for param in node.params:
             sym = Symbol(param.name, param.type, param.line, param.col, initialized=True)
             try:
@@ -72,13 +84,19 @@ class SemanticAnalyzer:
             except Exception as e:
                 self.error(f"Parameter '{param.name}' already defined", param)
 
+        # ثبت توابع تو در تو (قبل از بررسی بدنه)
+        nested_functions = [stmt for stmt in node.body if isinstance(stmt, FunctionDecl)]
+        for nested in nested_functions:
+            self._declare_function(nested)
+
         # بررسی بدنه
         for stmt in node.body:
             self.visit(stmt)
 
-        # بررسی وجود return در تابع non-void
-        if node.return_type.name != 'void' and not self.current_function_has_return:
-            self.error(f"Function '{node.name}' must return a value of type '{node.return_type.name}'", node)
+        # تحلیل مسیر بازگشت (برای توابع غیر void)
+        if node.return_type.name not in ('void', 'null'):
+            if not self._stmt_list_always_returns(node.body):
+                self.error(f"Function '{node.name}' does not return a value on all paths", node)
 
         # خروج از scope
         self.current_scope = self.current_scope.parent
@@ -92,7 +110,8 @@ class SemanticAnalyzer:
         if existing:
             self.error(f"Variable '{node.name}' already defined in this scope", node)
             return
-        sym = Symbol(node.name, node.var_type, node.line, node.col, initialized=(node.initializer is not None))
+        sym = Symbol(node.name, node.var_type, node.line, node.col,
+                     initialized=(node.initializer is not None))
         self.current_scope.define(node.name, sym)
         if node.initializer:
             init_type = self.visit(node.initializer)
@@ -107,6 +126,9 @@ class SemanticAnalyzer:
             sym = self.current_scope.lookup(node.target.name)
             if not sym:
                 self.error(f"Variable '{node.target.name}' is not defined", node.target)
+                return
+            if sym.is_function:
+                self.error(f"Cannot assign to function '{node.target.name}'", node.target)
                 return
             if not self.is_compatible(sym.type, right_type):
                 self.error(f"Cannot assign value of type '{right_type.name}' to variable '{sym.type.name}'", node)
@@ -159,9 +181,7 @@ class SemanticAnalyzer:
             self.error(f"Do-while condition must be bool, got '{cond_type.name}'", node.condition)
 
     def visit_ForStmt(self, node: ForStmt):
-        # scope جدید برای کل حلقه (متغیر حلقه و بدنه)
         self.current_scope = Scope(self.current_scope)
-        # تعریف متغیر حلقه
         var_sym = Symbol(node.var_name, Type('int'), node.line, node.col, initialized=True)
         try:
             self.current_scope.define(node.var_name, var_sym)
@@ -177,7 +197,6 @@ class SemanticAnalyzer:
 
         for stmt in node.body:
             self.visit(stmt)
-
         self.current_scope = self.current_scope.parent
 
     def visit_ReturnStmt(self, node: ReturnStmt):
@@ -186,7 +205,7 @@ class SemanticAnalyzer:
             return
         self.current_function_has_return = True
         expected = self.current_function.return_type
-        if expected.name == 'void':
+        if expected.name == 'void' or expected.name == 'null':
             if node.value is not None:
                 self.error("Void function cannot return a value", node)
         else:
@@ -211,13 +230,31 @@ class SemanticAnalyzer:
     # عبارات
     # ------------------------------------------------------------------
     def visit_Literal(self, node: Literal):
-        mapping = {'number': 'int', 'string': 'str', 'bool': 'bool', 'null': 'null'}
+        if node.type_name == 'number':
+            if isinstance(node.value, str) and '.' in node.value:
+                self.error("wrong type 'float' found", node)
+                return Type('error')
+            try:
+                int_val = int(node.value)
+                node.value = int_val
+            except:
+                pass
+            return Type('int')
+        mapping = {
+            'string': 'str',
+            'mstr': 'mstr',
+            'bool': 'bool',
+            'null': 'null'
+        }
         return Type(mapping[node.type_name])
 
     def visit_Variable(self, node: Variable):
         sym = self.current_scope.lookup(node.name)
         if not sym:
             self.error(f"Variable '{node.name}' is not defined", node)
+            return Type('error')
+        if sym.is_function:
+            self.error(f"Function '{node.name}' used as variable", node)
             return Type('error')
         if not sym.initialized:
             self.error(f"Variable '{node.name}' is used before being assigned", node)
@@ -227,14 +264,26 @@ class SemanticAnalyzer:
         left_type = self.visit(node.left)
         right_type = self.visit(node.right)
         op = node.operator
-        if op in ['+', '-', '*', '/', '%']:
+        if op == '+':
+            if (left_type.name in ('int', 'str', 'mstr') and right_type.name in ('int', 'str', 'mstr')):
+                if left_type.name in ('str', 'mstr') and right_type.name in ('str', 'mstr'):
+                    return Type('str')
+                if left_type.name == 'int' and right_type.name == 'int':
+                    return Type('int')
+                self.error(f"Arithmetic '+' requires both operands int or both string-like, got '{left_type.name}' and '{right_type.name}'", node)
+                return Type('error')
+            else:
+                self.error(f"Arithmetic '+' requires int or string operands, got '{left_type.name}' and '{right_type.name}'", node)
+                return Type('error')
+        elif op in ['-', '*', '/', '%']:
             if left_type.name == 'int' and right_type.name == 'int':
                 return Type('int')
             else:
                 self.error(f"Arithmetic '{op}' requires int, got '{left_type.name}' and '{right_type.name}'", node)
                 return Type('error')
         elif op in ['==', '!=', '<', '>', '<=', '>=']:
-            if left_type.name == right_type.name:
+            if left_type.name == right_type.name or \
+               (left_type.name in ('str','mstr') and right_type.name in ('str','mstr')):
                 return Type('bool')
             else:
                 self.error(f"Cannot compare '{left_type.name}' and '{right_type.name}' with '{op}'", node)
@@ -270,7 +319,7 @@ class SemanticAnalyzer:
 
     def visit_Call(self, node: Call):
         builtins = {
-            'print': {'args': [None], 'ret': Type('void'), 'accepts_any': True},   # هر نوعی را می‌پذیرد
+            'print': {'args': [None], 'ret': Type('void'), 'accepts_any': True},
             'scan': {'args': [], 'ret': Type('int')},
             'list': {'args': [Type('int')], 'ret': Type('vector')},
             'length': {'args': [Type('vector')], 'ret': Type('int')},
@@ -289,11 +338,12 @@ class SemanticAnalyzer:
                         self.error(f"Argument {i+1} of '{node.func_name}' expected '{expected.name}', got '{arg_type.name}'", arg)
             return spec['ret']
         else:
-            # تابع کاربر
-            if node.func_name not in self.functions:
+            sym = self.current_scope.lookup(node.func_name)
+            if not sym or not sym.is_function:
                 self.error(f"Function '{node.func_name}' is not defined", node)
                 return Type('error')
-            ret_type, params = self.functions[node.func_name]
+            ret_type = sym.type
+            params = sym.params
             if len(node.arguments) != len(params):
                 self.error(f"Function '{node.func_name}' expects {len(params)} arguments, got {len(node.arguments)}", node)
                 return ret_type
@@ -313,7 +363,6 @@ class SemanticAnalyzer:
         return Type('int')
 
     def visit_ArrayLiteral(self, node: ArrayLiteral):
-        # همه عناصر باید int باشند (طبق مشخصات TesLang)
         for elem in node.elements:
             elem_type = self.visit(elem)
             if elem_type.name != 'int':
@@ -331,9 +380,38 @@ class SemanticAnalyzer:
         return then_type
 
     # ------------------------------------------------------------------
-    # توابع کمکی
+    # توابع کمکی برای تحلیل مسیر بازگشت
+    # ------------------------------------------------------------------
+    def _stmt_always_returns(self, stmt: Statement) -> bool:
+        if isinstance(stmt, ReturnStmt):
+            return True
+        if isinstance(stmt, Block):
+            return self._stmt_list_always_returns(stmt.statements)
+        if isinstance(stmt, IfStmt):
+            then_returns = self._stmt_list_always_returns(stmt.then_body)
+            else_returns = self._stmt_list_always_returns(stmt.else_body) if stmt.else_body else False
+            return then_returns and else_returns
+        if isinstance(stmt, (WhileStmt, DoWhileStmt, ForStmt)):
+            return False
+        return False
+
+    def _stmt_list_always_returns(self, stmts: List[Statement]) -> bool:
+        if not stmts:
+            return False
+        return self._stmt_always_returns(stmts[-1])
+
+    # ------------------------------------------------------------------
+    # سازگاری نوع
     # ------------------------------------------------------------------
     def is_compatible(self, expected: Type, actual: Type) -> bool:
         if expected.name == 'error' or actual.name == 'error':
+            return True
+        if expected.name == 'void' and actual.name == 'null':
+            return True
+        if expected.name == 'null':
+            return actual.name == 'null'
+        if actual.name == 'null':
+            return False
+        if expected.name in ('str', 'mstr') and actual.name in ('str', 'mstr'):
             return True
         return expected.name == actual.name

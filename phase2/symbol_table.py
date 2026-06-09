@@ -1,15 +1,23 @@
 # symbol_table.py
-from teslang_ast import Type
+from teslang_ast import Type,Param
+from typing import List, Optional
 
 class Symbol:
-    def __init__(self, name: str, sym_type: Type, line: int, col: int, initialized: bool = False):
+    def __init__(self, name: str, sym_type: Type, line: int, col: int, 
+                 initialized: bool = False,
+                 is_function: bool = False,
+                 params: Optional[List['Param']] = None):
         self.name = name
-        self.type = sym_type
+        self.type = sym_type          # برای متغیر: نوع داده، برای تابع: نوع بازگشتی
         self.line = line
         self.col = col
         self.initialized = initialized
+        self.is_function = is_function
+        self.params = params if params is not None else []
 
     def __repr__(self):
+        if self.is_function:
+            return f"FuncSymbol({self.name}: {self.type} params={self.params})"
         return f"Symbol({self.name}: {self.type}, initialized={self.initialized})"
 
 class Scope:

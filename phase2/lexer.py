@@ -59,13 +59,15 @@ class Lexer:
             'for': TokenType.FOR,
             'to': TokenType.TO,
             'begin': TokenType.BEGIN,
-            'end': TokenType.END,          # جدید
+            'end': TokenType.END,
             'endfor': TokenType.ENDFOR,
             'scan': TokenType.SCAN,
             'print': TokenType.PRINT,
             'list': TokenType.LIST,
             'length': TokenType.LEN,
             'exit': TokenType.EXIT,
+            'true': TokenType.BOOL,
+            'false': TokenType.BOOL,
         }
         ttype = kw_map.get(value, TokenType.ID)
         return Token(ttype, value, start_line, start_col)
@@ -73,11 +75,20 @@ class Lexer:
     def read_number(self):
         start_line, start_col = self.line, self.col
         value = ''
+        # بخش صحیح
         while True:
             ch = self.peek()
             if ch is None or not ch.isdigit():
                 break
             value += self.advance()
+        # بخش اعشاری (در صورت وجود)
+        if self.peek() == '.':
+            value += self.advance()   # '.'
+            while True:
+                ch = self.peek()
+                if ch is None or not ch.isdigit():
+                    break
+                value += self.advance()
         return Token(TokenType.NUMBER, value, start_line, start_col)
 
     def read_string(self, quote_char):

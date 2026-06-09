@@ -204,16 +204,25 @@ class Parser:
 
     # ---------------------------- عبارات با اولویت ----------------------------
     def parse_expression(self) -> Expression:
-        # نقطه شروع: انتساب
         return self.parse_assignment()
 
     def parse_assignment(self) -> Expression:
-        left = self.parse_logical_or()
+        left = self.parse_ternary()
         if self.current_token.type == TokenType.EQ:
             self.advance()
-            right = self.parse_assignment()   # right-associative
+            right = self.parse_assignment()
             return Assign(left, right)
         return left
+
+    def parse_ternary(self) -> Expression:
+        cond = self.parse_logical_or()
+        if self.current_token.type == TokenType.QUESTION:
+            self.advance()
+            then_expr = self.parse_expression()   # می‌تواند دوباره شامل ?: باشد
+            self.consume(TokenType.COLON, "Expected ':'")
+            else_expr = self.parse_ternary()      # right-associative
+            return TernaryOp(cond, then_expr, else_expr)
+        return cond
 
     def parse_logical_or(self) -> Expression:
         left = self.parse_logical_and()
@@ -291,10 +300,13 @@ class Parser:
         tok = self.current_token
         if tok.type == TokenType.NUMBER:
             self.advance()
-            return Literal(int(tok.value), "number", line=tok.line, col=tok.column)
+            return Literal(tok.value, "number", line=tok.line, col=tok.column)
         if tok.type == TokenType.STRING:
             self.advance()
             return Literal(tok.value, "string", line=tok.line, col=tok.column)
+        if tok.type == TokenType.MULTILINE_STRING:
+            self.advance()
+            return Literal(tok.value, "mstr", line=tok.line, col=tok.column)
         if tok.type == TokenType.BOOL:
             self.advance()
             val = (tok.value == 'true')
