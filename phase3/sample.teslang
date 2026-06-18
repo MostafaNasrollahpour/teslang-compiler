@@ -4,6 +4,6 @@ funk <int> sum(a as int, b as int) {
 
 funk <null> main() {
     x :: int = 5;
-    y :: int = 3;
-    print(sum(x, y));
+    y :: int = 31;
+    print(sum(x, y) - 6);
 }

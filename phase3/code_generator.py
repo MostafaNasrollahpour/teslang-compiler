@@ -7,10 +7,8 @@ class CodeGenerator:
         self.code = []
         self.label_counter = 0
         self.current_function = None
-        self.var_reg = {}          # متغیر -> رجیستر ثابت
-        self.next_reg = 3           # r3 به بالا برای متغیرهای ساده
-        # رجیسترهای موقت: r0 (بازگشتی), r1 (پارامتر اول), r2 (پارامتر دوم) را بعد از انتقال پارامترها می‌توان استفاده کرد
-        # برای اطمینان، از r2, r12, r13, r14, r15 استفاده می‌کنیم
+        self.var_reg = {}
+        self.next_reg = 3
         self.temp_pool = ['r2', 'r12', 'r13', 'r14', 'r15']
         self.free_temps = self.temp_pool.copy()
         self.used_temps = []
@@ -45,15 +43,12 @@ class CodeGenerator:
         if reg in self.used_temps:
             self.used_temps.remove(reg)
             self.free_temps.append(reg)
-        # اگر reg متعلق به متغیرها باشد، آزاد نمی‌کنیم
 
     def reset_temps(self):
-        # همه رجیسترهای موقت را آزاد کن (در ابتدای هر تابع یا بلوک)
         for reg in self.used_temps:
             self.free_temps.append(reg)
         self.used_temps = []
-        # مرتب‌سازی برای predictability
-        self.free_temps = sorted(self.free_temps, reverse=True)  # فقط برای ترتیب
+        self.free_temps = sorted(self.free_temps, reverse=True)
 
     def visit(self, node: ASTNode):
         method = getattr(self, f"visit_{type(node).__name__}", None)
@@ -71,12 +66,12 @@ class CodeGenerator:
         self.next_reg = 3
         self.reset_temps()
         self.emit(f"proc {node.name}")
-        # پارامترها: r1, r2,... به رجیستر اختصاصی
         for i, p in enumerate(node.params, start=1):
             reg = self.alloc_var_reg(p.name)
             self.emit(f"mov {reg}, r{i}")
         for stmt in node.body:
             self.visit(stmt)
+        # فقط یک ret در انتها
         self.emit("ret")
         self.emit("")
         self.current_function = None
@@ -151,8 +146,6 @@ class CodeGenerator:
         reg = self.var_reg.get(node.name)
         if not reg:
             raise RuntimeError(f"Undefined var {node.name}")
-        # متغیرها رجیستر ثابت دارند، آن را به عنوان مقدار برمی‌گردانیم (نیاز به کپی نیست)
-        # اما برای یکسان‌سازی، یک رجیستر موقت اختصاص می‌دهیم و مقدار را کپی می‌کنیم
         temp = self.alloc_temp()
         self.emit(f"mov {temp}, {reg}")
         return temp
@@ -175,50 +168,45 @@ class CodeGenerator:
 
     def visit_Call(self, node: Call) -> str:
         if node.func_name == 'print':
+            # فقط برای چاپ اعداد صحیح (چاپ رشته پشتیبانی نمی‌شود)
             arg = self.visit(node.arguments[0])
-            self.emit(f"mov r1, {arg}")
-            self.emit("call print")
+            self.emit(f"call iput, {arg}")
             self.free_temp(arg)
             dummy = self.alloc_temp()
             self.emit(f"mov {dummy}, 0")
             return dummy
         elif node.func_name == 'scan':
             reg = self.alloc_temp()
-            self.emit(f"read {reg}")
+            self.emit(f"call iget, {reg}")
             return reg
         elif node.func_name == 'list':
             size_reg = self.visit(node.arguments[0])
             base_reg = self.alloc_temp()
-            # آدرس فرضی 1000 (در عمل باید از پشته تخصیص داد)
-            self.emit(f"mov {base_reg}, 1000")
+            self.emit(f"mov {base_reg}, 1000")  # placeholder
             self.free_temp(size_reg)
             return base_reg
         elif node.func_name == 'length':
             arr_reg = self.visit(node.arguments[0])
             len_reg = self.alloc_temp()
-            self.emit(f"mov {len_reg}, 0")  # مقدار ساختگی
+            self.emit(f"mov {len_reg}, 0")  # placeholder
             self.free_temp(arr_reg)
             return len_reg
         elif node.func_name == 'exit':
             arg = self.visit(node.arguments[0])
-            self.emit(f"exit {arg}")
+            self.emit(f"exit {arg}")  # placeholder
             self.free_temp(arg)
             dummy = self.alloc_temp()
             self.emit(f"mov {dummy}, 0")
             return dummy
         else:
-            # تابع کاربر
-            arg_regs = []
-            for i, a in enumerate(node.arguments, start=1):
-                r = self.visit(a)
-                self.emit(f"mov r{i}, {r}")
-                arg_regs.append(r)
-            self.emit(f"call {node.func_name}")
-            ret = self.alloc_temp()
-            self.emit(f"mov {ret}, r0")
+            # فراخوانی تابع کاربر
+            dest = self.alloc_temp()
+            arg_regs = [self.visit(a) for a in node.arguments]
+            args_str = ", ".join([dest] + arg_regs)
+            self.emit(f"call {node.func_name}, {args_str}")
             for r in arg_regs:
                 self.free_temp(r)
-            return ret
+            return dest
 
     def visit_IfStmt(self, node: IfStmt):
         cond = self.visit(node.condition)
@@ -272,7 +260,7 @@ class CodeGenerator:
             val = self.visit(node.value)
             self.emit(f"mov r0, {val}")
             self.free_temp(val)
-        self.emit("ret")
+        # دیگر ret در اینجا قرار نمی‌گیرد، زیرا در انتهای تابع یک ret اضافه می‌شود
 
     def visit_ExprStmt(self, node: ExprStmt):
         if node.expr:
