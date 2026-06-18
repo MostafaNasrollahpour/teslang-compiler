@@ -12,11 +12,13 @@ mov r2, 5
 mov r3, r2
 mov r15, 31
 mov r4, r15
-mov r13, r3
-mov r12, r4
-call sum, r14, r13, r12
-mov r2, 6
-sub r15, r14, r2
-call iput, r15
-mov r13, 0
+mov r14, 356
+mov r13, 44
+add r12, r14, r13
+mov r15, r3
+mov r14, r4
+call sum, r2, r15, r14
+add r13, r12, r2
+call iput, r13
+mov r15, 0
 ret
