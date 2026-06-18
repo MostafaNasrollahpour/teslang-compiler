@@ -1,0 +1,9 @@
+funk <int> sum(a as int, b as int) {
+    return a + b;
+}
+
+funk <null> main() {
+    x :: int = 5;
+    y :: int = 3;
+    print(sum(x, y));
+}
