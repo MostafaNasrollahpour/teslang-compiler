@@ -568,7 +568,7 @@ From highest precedence to lowest:
 
 | Level | Operators | Associativity |
 |---|---|---|
-| 1 | array indexing `[]` | left |
+| 1 | vector indexing `[]` | left |
 | 2 | unary `+`, `-`, `!` | right |
 | 3 | `*`, `/`, `%` | left |
 | 4 | `+`, `-` | left |
@@ -664,7 +664,7 @@ The bodies of:
 - functions,
 - conditional branches,
 - loops,
-- explicit brace-delimited blocks,
+- explicit blocks,
 
 also participate in scope handling.
 
@@ -674,6 +674,14 @@ A brace-delimited block has the form:
 {
     statements
 }
+```
+
+TesLang also accepts an explicit `begin ... end` block:
+
+```text
+begin
+    statements
+end
 ```
 
 Name lookup begins in the current scope and continues through parent scopes.
@@ -920,12 +928,17 @@ statement
     | for-statement
     | return-statement
     | brace-block
+    | begin-block
     | expression-statement
     | ";"
     ;
 
 brace-block
     = "{" statement* "}"
+    ;
+
+begin-block
+    = "begin" statement* "end"
     ;
 
 variable-declaration
@@ -942,138 +955,4 @@ if-statement
 while-statement
     = "while" "[[" expression "]]" "begin"
       statement*
-      "endwhile"
-    ;
-
-do-while-statement
-    = "do" "begin"
-      statement*
-      "while" "[[" expression "]]"
-      "endwhile"
-    ;
-
-for-statement
-    = "for" "(" IDENTIFIER "=" expression "to" expression ")"
-      "begin"
-      statement*
-      "endfor"
-    ;
-
-return-statement
-    = "return" expression? ";"
-    ;
-
-expression-statement
-    = expression ";"
-    ;
-
-expression
-    = assignment
-    ;
-
-assignment
-    = ternary ("=" assignment)?
-    ;
-
-ternary
-    = logical-or ("?" expression ":" ternary)?
-    ;
-
-logical-or
-    = logical-and ("||" logical-and)*
-    ;
-
-logical-and
-    = equality ("&&" equality)*
-    ;
-
-equality
-    = comparison (("==" | "!=") comparison)*
-    ;
-
-comparison
-    = addition (("<" | ">" | "<=" | ">=") addition)*
-    ;
-
-addition
-    = multiplication (("+" | "-") multiplication)*
-    ;
-
-multiplication
-    = unary (("*" | "/" | "%") unary)*
-    ;
-
-unary
-    = ("+" | "-" | "!") unary
-    | primary
-    ;
-
-primary
-    = atom ("[" expression "]")*
-    ;
-
-atom
-    = NUMBER
-    | STRING
-    | MULTILINE_STRING
-    | "true"
-    | "false"
-    | "null"
-    | array-literal
-    | call
-    | IDENTIFIER
-    | "(" expression ")"
-    ;
-
-call
-    = callable-name "(" argument-list? ")"
-    ;
-
-callable-name
-    = IDENTIFIER
-    | "print"
-    | "scan"
-    | "list"
-    | "length"
-    | "exit"
-    ;
-
-argument-list
-    = expression ("," expression)*
-    ;
-
-array-literal
-    = "[" (expression ("," expression)*)? "]"
-    ;
-```
-
-## 16. Complete Example
-
-```text
-funk <int> sum(a as int, b as int) {
-    return a + b;
-}
-
-funk <null> main() {
-    x :: int = 5;
-    y :: int = 31;
-
-    print(356 + 44 + sum(x, y));
-}
-```
-
-The verified backend compiles this program into TSVM intermediate representation and produces:
-
-```text
-436
-```
-
-when executed.
-
-## 17. Implementation Note
-
-This document describes the language recognized and checked by the compiler frontend.
-
-Not every frontend construct currently has complete TSVM lowering.
-
-For implementation-level details and the backend support matrix, see [Compiler Architecture](compiler-architecture.md).
+      "end

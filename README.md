@@ -192,6 +192,7 @@ teslang-compiler/
 ├── scripts/                # local verification scripts
 ├── .github/workflows/      # continuous integration
 ├── .gitignore
+├── LICENSE
 └── README.md
 ```
 
