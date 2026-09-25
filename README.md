@@ -1,8 +1,8 @@
 # TesLang Compiler
 
-A handwritten compiler for TesLang, built to explore how source code is transformed through the major stages of a compiler pipeline.
+TesLang Compiler is a handwritten compiler built to explore how a programming language moves from source code through lexical analysis, parsing, semantic analysis, and target-code generation.
 
-The compiler implements lexical analysis, recursive-descent parsing, AST construction, semantic analysis, scoped symbol management, and code generation targeting the TSVM intermediate representation.
+The compiler includes a handwritten lexer, recursive-descent parser, abstract syntax tree, scoped symbol tables, semantic and type analysis, and a backend targeting the TSVM virtual machine.
 
 The core compiler stages are implemented manually without parser generators or compiler frameworks.
 
@@ -11,169 +11,136 @@ The core compiler stages are implemented manually without parser generators or c
 ```mermaid
 flowchart LR
     A[TesLang Source] --> B[Lexer]
-    B --> C[Token Stream]
+    B --> C[Tokens]
     C --> D[Recursive-Descent Parser]
-    D --> E[Abstract Syntax Tree]
+    D --> E[AST]
     E --> F[Semantic Analyzer]
     F --> G[Code Generator]
     G --> H[TSVM IR]
-    H --> I[TSVM Execution]
+    H --> I[TSVM Runtime]
 ```
 
-## Features
+## Highlights
 
-### Lexical Analysis
+- handwritten lexical analyzer with source-position tracking and nested comments
+- recursive-descent parser with explicit operator-precedence levels
+- abstract syntax tree shared by semantic analysis and code generation
+- nested lexical scopes and symbol-table-based name resolution
+- type checking, definite-assignment checks, function validation, and return-path analysis
+- AST visitor-based TSVM code generation
+- preserved incremental Git history with tagged implementation milestones
+- reproducible end-to-end smoke test
 
-- Tokenization of TesLang source code
-- Keyword, identifier, operator, and literal recognition
-- Source line and column tracking
-- Nested comment handling
+## Support Status
 
-### Parsing
+The compiler frontend recognizes a broader TesLang language surface than the currently verified TSVM backend.
 
-- Handwritten recursive-descent parser
-- Operator precedence handling
-- AST construction
-- Function declarations and calls
-- Variable declarations and assignments
-- Conditional statements
-- `while`, `do-while`, and `for` loops
-- Arrays and array access
-- Unary and binary expressions
-- Ternary expressions
+| Feature Area | Status |
+|---|---|
+| Integer literals and variables | Verified end-to-end |
+| Variable declarations and assignments | Verified end-to-end |
+| Integer arithmetic | Verified end-to-end |
+| Straight-line functions and calls | Verified end-to-end |
+| Terminal return values | Verified end-to-end |
+| Integer output | Verified end-to-end |
+| Comparisons and control flow | Frontend supported, backend partial |
+| Unary, logical, and ternary expressions | Frontend supported, backend incomplete |
+| Strings and multiline strings | Frontend supported, backend incomplete |
+| Vectors and indexing | Frontend supported, backend incomplete |
+| Nested function declarations | Parser supported, semantic/backend support incomplete |
 
-### Semantic Analysis
+The verified example in `examples/sample.teslang` compiles to TSVM IR and executes successfully on the TSVM runtime.
 
-- Nested lexical scopes
-- Symbol tables
-- Variable and function resolution
-- Type checking
-- Function argument validation
-- Duplicate declaration detection
-- Undefined variable detection
-- Use-before-assignment detection
-- Function return validation
-- Entry-point validation
-
-### Code Generation
-
-- AST-based code generation
-- Register-oriented intermediate code
-- Arithmetic and comparison operations
-- Branch and loop generation
-- Function calls and return values
-- Array access
-- TSVM-targeted intermediate representation
-
-## Project Structure
-
-```text
-teslang-compiler/
-├── compiler/
-│   ├── main.py
-│   ├── lexer.py
-│   ├── tokens.py
-│   ├── parser.py
-│   ├── teslang_ast.py
-│   ├── symbol_table.py
-│   ├── semantic_analyzer.py
-│   └── code_generator.py
-│
-├── examples/
-│   ├── sample.teslang
-│   └── sample.tsl
-│
-├── .gitignore
-└── README.md
-```
+For the detailed language surface and backend support matrix, see the project documentation.
 
 ## Quick Start
 
 ### Requirements
 
+Compiling TesLang source code requires:
+
 - Python 3
-- A C compiler such as GCC or Clang
+
+Executing generated code additionally requires:
+
+- a C compiler such as GCC or Clang
 - `make`
-- TSVM for executing the generated intermediate code
+- TSVM
 
 The compiler itself has no external Python dependencies.
 
-### 1. Compile a TesLang Program
+### Compile a TesLang Program
 
-Run the compiler from the repository root:
+From the repository root:
 
 ```bash
-python compiler/main.py < examples/sample.teslang
+python3 compiler/main.py < examples/sample.teslang
 ```
 
-The compiler writes the generated TSVM intermediate representation to:
+Generated TSVM IR is written to:
 
 ```text
 output.tsl
 ```
 
-A reference generated output is also available at:
+A checked-in reference output is available at:
 
 ```text
 examples/sample.tsl
 ```
 
-### 2. Get TSVM
+### Build TSVM
 
-TSVM is a separate register-based virtual machine used as the execution target of this compiler.
+TSVM is maintained separately from this compiler.
 
-Clone it next to or inside your local project workspace:
-
-```bash
-git clone https://github.com/MostafaNasrollahpour/tsvm.git tsvm
-```
-
-Build the virtual machine:
+Clone the upstream runtime into the repository directory:
 
 ```bash
-cd tsvm
-make
-cd ..
+git clone https://github.com/aligrudi/tsvm.git tsvm
 ```
 
-This creates the executable:
+Build it:
 
-```text
-tsvm/tsvm
+```bash
+make -C tsvm
 ```
 
-### 3. Execute the Generated Program
+The local `tsvm/` directory is intentionally ignored by Git.
 
-After compiling a TesLang source file, execute the generated IR with:
+### Execute the Generated Program
 
 ```bash
 ./tsvm/tsvm output.tsl
 ```
 
-The complete flow is therefore:
+The complete workflow is:
 
 ```text
 TesLang source
       ↓
 TesLang Compiler
       ↓
-output.tsl
+TSVM IR
       ↓
-TSVM
+TSVM Runtime
       ↓
 Program output
 ```
 
-For example:
+For the included sample:
 
 ```bash
-python compiler/main.py < examples/sample.teslang
+python3 compiler/main.py < examples/sample.teslang
 ./tsvm/tsvm output.tsl
 ```
 
-## Example
+Expected output:
 
-Input:
+```text
+436
+```
+
+## Example
 
 ```text
 funk <int> sum(a as int, b as int) {
@@ -183,67 +150,76 @@ funk <int> sum(a as int, b as int) {
 funk <null> main() {
     x :: int = 5;
     y :: int = 31;
-    print(356 + 44 + sum(x , y));
+
+    print(356 + 44 + sum(x, y));
 }
 ```
 
-Generated TSVM IR begins with:
+The generated reference IR is available in [`examples/sample.tsl`](examples/sample.tsl).
 
-```text
-proc sum
-mov r3, r1
-mov r4, r2
-mov r2, r3
-mov r15, r4
-add r14, r2, r15
-mov r0, r14
-ret
+## Testing
+
+Run the end-to-end smoke test with:
+
+```bash
+./scripts/smoke-test.sh
 ```
 
-## TSVM Runtime
+The test verifies that:
 
-TesLang Compiler generates intermediate code for **TSVM**, a small register-based virtual machine.
+1. the Python compiler modules compile,
+2. the sample TesLang source compiles successfully,
+3. the generated IR matches the checked-in reference output,
+4. when TSVM is available, the program executes and produces `436`.
 
-A TSVM program consists of procedures and virtual registers such as `r0`, `r1`, and `r2`. Execution starts from a procedure named `main`.
+The same verification is run automatically through GitHub Actions.
 
-The generated instruction set includes operations such as:
+## Project Structure
 
 ```text
-mov   add   sub   mul   div   mod
-cmp<  cmp>  cmp== cmp<= cmp>=
-ld    st
-call  ret
-jmp   jz    jnz
+teslang-compiler/
+├── compiler/               # compiler implementation
+│   ├── lexer.py
+│   ├── parser.py
+│   ├── teslang_ast.py
+│   ├── semantic_analyzer.py
+│   ├── symbol_table.py
+│   ├── code_generator.py
+│   ├── tokens.py
+│   └── main.py
+├── examples/               # source and reference TSVM IR
+├── docs/                   # language and architecture documentation
+├── scripts/                # local verification scripts
+├── .github/workflows/      # continuous integration
+├── .gitignore
+└── README.md
 ```
 
-TSVM also provides runtime procedures used by generated programs, including integer input/output and memory allocation.
+## Documentation
 
-TSVM is maintained as a separate project and is intentionally not included in this repository:
+Detailed documentation is kept outside the README:
 
-[TSVM Repository](https://github.com/MostafaNasrollahpour/tsvm)
+- [TesLang Language Specification](docs/language-spec.md) — syntax, types, expressions, functions, scopes, control flow, vectors, built-ins, and semantic rules
+- [Compiler Architecture](docs/compiler-architecture.md) — compiler stages, AST design, symbol tables, semantic analysis, register allocation, TSVM lowering, and backend support
 
-This repository focuses on translating TesLang source code into TSVM-compatible intermediate representation.
+## Project History
 
-## Implementation Evolution
+The repository preserves the original incremental development history of the compiler.
 
-The compiler was developed incrementally, with each stage extending the previous implementation.
+| Milestone | Scope |
+|---|---|
+| `lexer-complete` | Lexical analysis, tokens, literals, operators, and nested comments |
+| `frontend-complete` | Recursive-descent parsing, AST construction, symbol tables, scopes, and semantic analysis |
+| `compiler-complete` | Initial TSVM-targeted code-generation implementation |
 
-### Lexical Analysis
+The current `main` branch builds on those milestones with repository cleanup, documentation, verification, and portfolio presentation while keeping the original implementation history intact.
 
-The initial implementation focused on tokenization, source-position tracking, literal recognition, and comment handling.
+## TSVM
 
-### Compiler Frontend
+[TSVM](https://github.com/aligrudi/tsvm) is an external register-based virtual machine used as the execution target for generated TesLang programs.
 
-The next stage introduced a recursive-descent parser, AST construction, scoped symbol tables, and semantic validation.
+TSVM itself is not implemented as part of this repository. This project focuses on the compiler pipeline that translates TesLang source code into TSVM-compatible intermediate representation.
 
-### Code Generation
+## License
 
-The final stage added AST-driven code generation targeting TSVM's register-based intermediate representation.
-
-Earlier implementation milestones remain available through the Git history and repository tags.
-
-## Motivation
-
-Compiler construction combines several areas of computer science that are often encountered separately: grammars, parsing, tree-based representations, scope resolution, type systems, control flow, and low-level execution models.
-
-I built TesLang Compiler to develop a practical understanding of how these components interact inside a complete language-processing pipeline. Implementing the major stages manually made it possible to explore the design decisions behind tokenization, recursive-descent parsing, semantic validation, AST traversal, symbol resolution, and code generation.
+This project is available under the [MIT License](LICENSE).
