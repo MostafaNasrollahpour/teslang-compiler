@@ -8,7 +8,7 @@ class Symbol:
                  is_function: bool = False,
                  params: Optional[List['Param']] = None):
         self.name = name
-        self.type = sym_type          # برای متغیر: نوع داده، برای تابع: نوع بازگشتی
+        self.type = sym_type          # Variable data type or function return type
         self.line = line
         self.col = col
         self.initialized = initialized

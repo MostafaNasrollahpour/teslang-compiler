@@ -71,7 +71,7 @@ class CodeGenerator:
             self.emit(f"mov {reg}, r{i}")
         for stmt in node.body:
             self.visit(stmt)
-        # فقط یک ret در انتها
+        # Emit a single return at the end of the function
         self.emit("ret")
         self.emit("")
         self.current_function = None
@@ -168,7 +168,7 @@ class CodeGenerator:
 
     def visit_Call(self, node: Call) -> str:
         if node.func_name == 'print':
-            # فقط برای چاپ اعداد صحیح (چاپ رشته پشتیبانی نمی‌شود)
+            # Integer output only; string output is not supported
             arg = self.visit(node.arguments[0])
             self.emit(f"call iput, {arg}")
             self.free_temp(arg)
@@ -199,7 +199,7 @@ class CodeGenerator:
             self.emit(f"mov {dummy}, 0")
             return dummy
         else:
-            # فراخوانی تابع کاربر
+            # User-defined function call
             dest = self.alloc_temp()
             arg_regs = [self.visit(a) for a in node.arguments]
             args_str = ", ".join([dest] + arg_regs)
@@ -260,7 +260,7 @@ class CodeGenerator:
             val = self.visit(node.value)
             self.emit(f"mov r0, {val}")
             self.free_temp(val)
-        # دیگر ret در اینجا قرار نمی‌گیرد، زیرا در انتهای تابع یک ret اضافه می‌شود
+        # Return is emitted at the end of the function
 
     def visit_ExprStmt(self, node: ExprStmt):
         if node.expr:

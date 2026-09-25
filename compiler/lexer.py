@@ -75,13 +75,13 @@ class Lexer:
     def read_number(self):
         start_line, start_col = self.line, self.col
         value = ''
-        # بخش صحیح
+        # Integer part
         while True:
             ch = self.peek()
             if ch is None or not ch.isdigit():
                 break
             value += self.advance()
-        # بخش اعشاری (در صورت وجود)
+        # Fractional part, if present
         if self.peek() == '.':
             value += self.advance()   # '.'
             while True:

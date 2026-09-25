@@ -202,7 +202,7 @@ class Parser:
         self.consume(TokenType.SEMI_COLON, "Expected ';'")
         return ReturnStmt(expr)
 
-    # ---------------------------- عبارات با اولویت ----------------------------
+    # ---------------------------- Expression precedence ----------------------------
     def parse_expression(self) -> Expression:
         return self.parse_assignment()
 
@@ -218,7 +218,7 @@ class Parser:
         cond = self.parse_logical_or()
         if self.current_token.type == TokenType.QUESTION:
             self.advance()
-            then_expr = self.parse_expression()   # می‌تواند دوباره شامل ?: باشد
+            then_expr = self.parse_expression()   # May recursively contain another ternary expression
             self.consume(TokenType.COLON, "Expected ':'")
             else_expr = self.parse_ternary()      # right-associative
             return TernaryOp(cond, then_expr, else_expr)

@@ -14,7 +14,7 @@ class SemanticAnalyzer:
         self.errors.append(f"[Line {node.line}, Col {node.col}] {msg}")
 
     # ------------------------------------------------------------------
-    # بازدید از گره‌ها
+    # Node traversal
     # ------------------------------------------------------------------
     def visit(self, node: ASTNode):
         method_name = f"visit_{type(node).__name__}"
@@ -35,21 +35,21 @@ class SemanticAnalyzer:
         return None
 
     # ------------------------------------------------------------------
-    # برنامه و توابع
+    # Program and functions
     # ------------------------------------------------------------------
     def visit_Program(self, node: Program):
-        # ایجاد scope سراسری
+        # Create the global scope
         self.current_scope = Scope()
 
-        # مرحله 1: ثبت تمام توابع سطح بالا (بدون بررسی بدنه)
+        # Register top-level functions before analyzing their bodies
         for func in node.functions:
             self._declare_function(func)
 
-        # مرحله 2: بررسی بدنه توابع (حالا توابع در scope وجود دارند)
+        # Analyze function bodies after all top-level functions are registered
         for func in node.functions:
             self.visit(func)
 
-        # بررسی وجود main
+        # Validate the main entry point
         main_sym = self.current_scope.lookup('main')
         if not main_sym or not main_sym.is_function:
             self.error("Program must have a 'main' function", node)
@@ -58,8 +58,8 @@ class SemanticAnalyzer:
                 self.error("'main' function must have signature: funk <null> main()", node)
 
     def _declare_function(self, node: FunctionDecl):
-        """ثبت تابع در scope جاری (قبل از بررسی بدنه)"""
-        # نوع بازگشتی را به Type تبدیل می‌کنیم (null -> void)
+        """Register a function in the current scope before analyzing its body."""
+        # Convert the declared return type to Type (null -> void)
         ret_type = node.return_type
         if ret_type.name == 'null':
             ret_type = Type('void')
@@ -71,12 +71,12 @@ class SemanticAnalyzer:
             self.error(f"Function '{node.name}' already defined in this scope", node)
 
     def visit_FunctionDecl(self, node: FunctionDecl):
-        # ورود به scope جدید
+        # Enter function scope
         self.current_scope = Scope(self.current_scope)
         self.current_function = node
         self.current_function_has_return = False
 
-        # تعریف پارامترها به عنوان متغیر در scope جدید
+        # Define parameters in the function scope
         for param in node.params:
             sym = Symbol(param.name, param.type, param.line, param.col, initialized=True)
             try:
@@ -84,26 +84,26 @@ class SemanticAnalyzer:
             except Exception as e:
                 self.error(f"Parameter '{param.name}' already defined", param)
 
-        # ثبت توابع تو در تو (قبل از بررسی بدنه)
+        # Register nested functions before analyzing their bodies
         nested_functions = [stmt for stmt in node.body if isinstance(stmt, FunctionDecl)]
         for nested in nested_functions:
             self._declare_function(nested)
 
-        # بررسی بدنه
+        # Analyze the function body
         for stmt in node.body:
             self.visit(stmt)
 
-        # تحلیل مسیر بازگشت (برای توابع غیر void)
+        # Analyze return paths for non-void functions
         if node.return_type.name not in ('void', 'null'):
             if not self._stmt_list_always_returns(node.body):
                 self.error(f"Function '{node.name}' does not return a value on all paths", node)
 
-        # خروج از scope
+        # Leave function scope
         self.current_scope = self.current_scope.parent
         self.current_function = None
 
     # ------------------------------------------------------------------
-    # دستورات
+    # Statements
     # ------------------------------------------------------------------
     def visit_VarDecl(self, node: VarDecl):
         existing = self.current_scope.lookup_local(node.name)
@@ -227,7 +227,7 @@ class SemanticAnalyzer:
         self.current_scope = self.current_scope.parent
 
     # ------------------------------------------------------------------
-    # عبارات
+    # Expressions
     # ------------------------------------------------------------------
     def visit_Literal(self, node: Literal):
         if node.type_name == 'number':
@@ -380,7 +380,7 @@ class SemanticAnalyzer:
         return then_type
 
     # ------------------------------------------------------------------
-    # توابع کمکی برای تحلیل مسیر بازگشت
+    # Return-path analysis helpers
     # ------------------------------------------------------------------
     def _stmt_always_returns(self, stmt: Statement) -> bool:
         if isinstance(stmt, ReturnStmt):
@@ -401,7 +401,7 @@ class SemanticAnalyzer:
         return self._stmt_always_returns(stmts[-1])
 
     # ------------------------------------------------------------------
-    # سازگاری نوع
+    # Type compatibility
     # ------------------------------------------------------------------
     def is_compatible(self, expected: Type, actual: Type) -> bool:
         if expected.name == 'error' or actual.name == 'error':

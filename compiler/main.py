@@ -2,7 +2,7 @@ import sys
 from lexer import Lexer
 from parser import Parser
 from semantic_analyzer import SemanticAnalyzer
-from code_generator import CodeGenerator   # اضافه کن
+from code_generator import CodeGenerator
 
 def main():
     text = sys.stdin.read()
@@ -16,7 +16,7 @@ def main():
             for err in analyzer.errors:
                 print(err, file=sys.stderr)
             sys.exit(1)
-        # اضافه کن:
+        
         gen = CodeGenerator()
         gen.visit(ast)
         with open("output.tsl", "w") as f:
