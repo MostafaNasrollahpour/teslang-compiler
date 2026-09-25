@@ -16,7 +16,6 @@ def main():
             for err in analyzer.errors:
                 print(err, file=sys.stderr)
             sys.exit(1)
-        
         gen = CodeGenerator()
         gen.visit(ast)
         with open("output.tsl", "w") as f:

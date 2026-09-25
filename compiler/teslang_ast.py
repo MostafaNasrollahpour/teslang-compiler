@@ -31,11 +31,10 @@ class Param(ASTNode):
     def __repr__(self):
         return f"Param({self.name}: {self.type})"
 
-# Statement must be defined before FunctionDecl
 class Statement(ASTNode):
     pass
 
-class FunctionDecl(Statement):   # Now Statement is defined
+class FunctionDecl(Statement):
     def __init__(self, name: str, return_type: Type, params: List[Param], body: List[Statement], line: int = 0, col: int = 0):
         super().__init__(line, col)
         self.name = name

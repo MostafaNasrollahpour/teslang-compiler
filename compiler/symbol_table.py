@@ -1,9 +1,9 @@
 # symbol_table.py
-from teslang_ast import Type,Param
+from teslang_ast import Type, Param
 from typing import List, Optional
 
 class Symbol:
-    def __init__(self, name: str, sym_type: Type, line: int, col: int, 
+    def __init__(self, name: str, sym_type: Type, line: int, col: int,
                  initialized: bool = False,
                  is_function: bool = False,
                  params: Optional[List['Param']] = None):
