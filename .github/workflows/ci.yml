@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clone TSVM
+        run: git clone --depth 1 https://github.com/aligrudi/tsvm.git tsvm
+
+      - name: Build TSVM
+        run: make -C tsvm
+
+      - name: Run smoke test
+        run: ./scripts/smoke-test.sh
