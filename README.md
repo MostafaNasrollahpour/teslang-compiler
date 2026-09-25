@@ -17,6 +17,7 @@ flowchart LR
     E --> F[Semantic Analyzer]
     F --> G[Code Generator]
     G --> H[TSVM IR]
+    H --> I[TSVM Execution]
 ```
 
 ## Features
@@ -86,28 +87,88 @@ teslang-compiler/
 └── README.md
 ```
 
-## Running the Compiler
+## Quick Start
 
-The project has no external Python dependencies.
+### Requirements
 
-Compile a TesLang program by passing the source through standard input:
+- Python 3
+- A C compiler such as GCC or Clang
+- `make`
+- TSVM for executing the generated intermediate code
+
+The compiler itself has no external Python dependencies.
+
+### 1. Compile a TesLang Program
+
+Run the compiler from the repository root:
 
 ```bash
 python compiler/main.py < examples/sample.teslang
 ```
 
-The generated TSVM intermediate code is written to:
+The compiler writes the generated TSVM intermediate representation to:
 
 ```text
 output.tsl
 ```
 
-`output.tsl` is intentionally ignored by Git because it is generated output.
-
-A reference output is available at:
+A reference generated output is also available at:
 
 ```text
 examples/sample.tsl
+```
+
+### 2. Get TSVM
+
+TSVM is a separate register-based virtual machine used as the execution target of this compiler.
+
+Clone it next to or inside your local project workspace:
+
+```bash
+git clone https://github.com/MostafaNasrollahpour/tsvm.git tsvm
+```
+
+Build the virtual machine:
+
+```bash
+cd tsvm
+make
+cd ..
+```
+
+This creates the executable:
+
+```text
+tsvm/tsvm
+```
+
+### 3. Execute the Generated Program
+
+After compiling a TesLang source file, execute the generated IR with:
+
+```bash
+./tsvm/tsvm output.tsl
+```
+
+The complete flow is therefore:
+
+```text
+TesLang source
+      ↓
+TesLang Compiler
+      ↓
+output.tsl
+      ↓
+TSVM
+      ↓
+Program output
+```
+
+For example:
+
+```bash
+python compiler/main.py < examples/sample.teslang
+./tsvm/tsvm output.tsl
 ```
 
 ## Example
@@ -139,11 +200,29 @@ mov r0, r14
 ret
 ```
 
-## TSVM
+## TSVM Runtime
 
-The compiler targets TSVM, a small register-based virtual machine used to execute the generated intermediate representation.
+TesLang Compiler generates intermediate code for **TSVM**, a small register-based virtual machine.
 
-TSVM itself is an external runtime and is not included in this repository. This repository focuses on the compiler pipeline and generation of TSVM-compatible IR.
+A TSVM program consists of procedures and virtual registers such as `r0`, `r1`, and `r2`. Execution starts from a procedure named `main`.
+
+The generated instruction set includes operations such as:
+
+```text
+mov   add   sub   mul   div   mod
+cmp<  cmp>  cmp== cmp<= cmp>=
+ld    st
+call  ret
+jmp   jz    jnz
+```
+
+TSVM also provides runtime procedures used by generated programs, including integer input/output and memory allocation.
+
+TSVM is maintained as a separate project and is intentionally not included in this repository:
+
+[TSVM Repository](https://github.com/MostafaNasrollahpour/tsvm)
+
+This repository focuses on translating TesLang source code into TSVM-compatible intermediate representation.
 
 ## Implementation Evolution
 
